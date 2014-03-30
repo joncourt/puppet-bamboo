@@ -1,0 +1,69 @@
+#!/bin/sh
+set -e
+
+# based on https://confluence.atlassian.com/display/BAMBOO/Running+Bamboo+as+a+Linux+service
+
+### BEGIN INIT INFO
+# Provides: bamboo
+# Required-Start: $local_fs $remote_fs $network $time
+# Required-Stop: $local_fs $remote_fs $network $time
+# Should-Start: $syslog
+# Should-Stop: $syslog
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: Atlassian Bamboo Server
+### END INIT INFO
+# INIT Script
+######################################
+# Define some variables
+# Name of app ( bamboo, Confluence, etc )
+APP=bamboo
+# Name of the user to run as
+USER=<%= @user %>
+# Location of application's bin directory
+BASE=<%= @dir %>
+tomcat_pid() {
+   echo `ps aux | grep "Dcatalina.base=$BASE" | grep -v grep | awk '{ print $2 }'`
+}
+case "$1" in
+  start)
+    pid=$(tomcat_pid)
+    if [ -n "$pid" ]
+      then
+        echo "$APP install already running with pib: $pid. Starting nothing."
+      else 
+        echo "Starting $APP"
+        /bin/su - $USER -c "export JAVA_HOME=<%= @java_home %> && cd $BASE/logs && $BASE/bin/startup.sh &> /dev/null"
+    fi
+    ;;
+  stop)    
+    pid=$(tomcat_pid)
+    if [ -n "$pid" ]
+      then
+        echo "Stopping $APP"
+        /bin/su - $USER -c "export JAVA_HOME=<%= @java_home %> && $BASE/bin/shutdown.sh &> /dev/null"
+        echo "$APP stopped successfully"
+      else
+        echo "No running $APP detected. Stopping nothing."
+    fi
+    ;;
+  restart)
+        $0 stop
+        sleep 5
+        $0 start
+        ;;
+  status)
+        pid=$(tomcat_pid)
+        if [ -n "$pid" ]
+          then
+            echo "Your $APP Instance is running with pid: $pid"
+          else
+            echo "Your $APP Instance is not running"
+        fi
+        ;;
+  *)
+    echo "Usage: /etc/init.d/$APP {start|restart|stop|status}"
+    exit 1
+    ;;
+esac
+exit 0

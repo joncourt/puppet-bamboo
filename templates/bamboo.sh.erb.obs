@@ -1,0 +1,45 @@
+#!/bin/sh -e
+# bamboo startup script
+#chkconfig: 2345 80 05
+#description: bamboo
+ 
+# Define some variables
+
+# Name of app ( bamboo, Confluence, etc )
+APP=bamboo
+
+# Name of the user to run as
+USER=<%= @user %>
+
+# Location of application's bin directory
+BASE=<%= @dir %>
+
+# Location of Java JDK
+export JAVA_HOME=<%= @java_home %>
+ 
+case "$1" in
+  # Start command
+  start)
+    echo "Starting $APP"
+    /bin/su -m $USER -c "cd $BASE/logs && $BASE/bin/start-bamboo.sh &> /dev/null" &
+    ;;
+  # Stop command
+  stop)
+    echo "Stopping $APP"
+    /bin/su -m $USER -c "$BASE/bin/stop-bamboo.sh &> /dev/null" &
+    echo "$APP stopped successfully"
+    ;;
+   # Restart command
+   restart)
+        $0 stop
+        sleep 5
+        $0 start
+        ;;
+  *)
+    echo "Usage: /etc/init.d/$APP {start|restart|stop}"
+    exit 1
+    ;;
+esac
+ 
+exit 0
+
