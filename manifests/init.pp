@@ -29,6 +29,8 @@ class bamboo (
   $proxy_scheme = 'http',
   $proxy_name = undef,
   $proxy_port = undef,
+  $svnkit_version = undef,
+  $svnkit_zip_url = undef,
 ) {
 
   $srcdir = '/usr/local/src'
@@ -96,7 +98,7 @@ BAMBOO_LOG_FILE=${home}/logs/bamboo.log",
   service { 'bamboo':
     ensure     => running,
     enable     => $versionGE510, # service bamboo does not support chkconfig
-    hasrestart => true,
+    hasrestart => false, # restart doesn't really work - takes too long to stop
     hasstatus  => true,
   }
 
@@ -109,4 +111,35 @@ BAMBOO_LOG_FILE=${home}/logs/bamboo.log",
     } 
   } 
 
+  # bamboo ships with svnkit 1.7.x which fails if your subversion version is
+  # 1.8+. A new svnkit version can be swapped in here.
+  if $svnkit_version {
+    package {'curl':
+      ensure => present,
+      }->
+    package {'unzip':
+      ensure => present,
+    } ->
+    archive { 'svnkit_update':
+      ensure      => present,
+      url         => $svnkit_zip_url,
+      target      => '/tmp/svnkit',
+      src_target  => '/tmp',
+      extension   => 'zip',
+      checksum    => false,
+    } ->
+    exec {"mv svnkit-[0-90-9].[0-90-9].[0-90-9].jar svnkit.jar.orig":
+      user => $user,
+      creates => "${dir}/${webappDirName}/WEB-INF/lib/svnkit.jar.orig",
+      cwd => "${dir}/${webappDirName}/WEB-INF/lib",
+    } ->
+    file {"${dir}/${webappDirName}/WEB-INF/lib/svnkit-${svnkit_version}.jar":
+      ensure => present,
+      source => "/tmp/svnkit/svnkit-${svnkit_version}/lib/svnkit-${svnkit_version}.jar",
+      owner => $user,
+      group => $user,
+      before => Service['bamboo'],
+      require => Exec['bamboo'],
+    }
+  }
 }
